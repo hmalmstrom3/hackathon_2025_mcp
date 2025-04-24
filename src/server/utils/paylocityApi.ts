@@ -1,9 +1,12 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
+import dotenv from 'dotenv';
 import { getPaylocityAccessToken } from './paylocityAuth.js';
+
+dotenv.config();
 
 // Create an axios instance for Paylocity API requests
 export const paylocityApi = axios.create({
-  baseURL: 'https://api.paylocity.com/', // Adjust as needed for other Paylocity endpoints
+  baseURL: process.env.PAYLOCITY_API_BASE_URL || 'https://tinprovider.qa.paylocity.com/',
 });
 
 // Attach middleware to inject the Bearer token
