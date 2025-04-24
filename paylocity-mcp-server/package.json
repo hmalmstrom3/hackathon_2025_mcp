@@ -1,7 +1,7 @@
 {
-  "name": "employee-demographic-api",
+  "name": "paylocity-nextgen-api",
   "version": "v1",
-  "description": "MCP Server generated from OpenAPI spec for employee-demographic-api",
+  "description": "MCP Server generated from OpenAPI spec for Paylocity NextGen Apis",
   "private": true,
   "type": "module",
   "main": "build/index.js",

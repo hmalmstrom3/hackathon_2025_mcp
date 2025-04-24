@@ -64,7 +64,6 @@ export async function setupWebServer(server: Server, port = 3000) {
     
     // Connect the transport to the MCP server
     try {
-      console.error(`x`);
       await server.connect(transport);
     } catch (error) {
       console.error(`Error connecting transport for session ${sessionId}:`, error);
@@ -75,21 +74,17 @@ export async function setupWebServer(server: Server, port = 3000) {
   // API endpoint for clients to send messages
   app.post("/api/messages", async (req: Request, res: Response) => {
     const sessionId = req.query.sessionId as string;
-    console.error(`az`);
     if (!sessionId) {
-      console.error(`a`);
       return res.status(400).send('Missing sessionId query parameter');
     }
     
     const transport = transports[sessionId];
     
     if (!transport) {
-      console.error(`b`);
       return res.status(404).send('No active session found with the provided sessionId');
     }
     
     try {
-      console.error(req.body);
       await transport.handlePostMessage(req, res, req.body);
     } catch (error) {
       console.error(`Error handling message for session ${sessionId}:`, error);
