@@ -6,16 +6,27 @@
   "type": "module",
   "scripts": {
     "build": "tsc --build",
-    "start": "node dist/server/mcpServer.js"
+    "start": "node dist/server/mcpServer.js",
+    "test:mcp": "ts-node --loader ts-node/esm src/client/mcpClient.test.ts",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.2",
     "axios": "^1.6.0",
     "dotenv": "^16.0.0",
     "express": "^5.1.0",
-    "@modelcontextprotocol/sdk": "^1.10.2"
+    "ws": "^8.18.1"
   },
   "devDependencies": {
+    "@types/express": "^4.17.0",
+    "@types/ws": "^8.18.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.0.0",
-    "@types/express": "^4.17.0"
+    "vitest": "^3.1.2"
+  },
+  "vitest": {
+    "coverage": {
+      "provider": "istanbul"
+    }
   }
 }

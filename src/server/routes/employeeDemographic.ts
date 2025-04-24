@@ -1,30 +1,25 @@
 import { Application, Request, Response } from 'express';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import type { paths, components } from '../types/EmployeeDemographic.js';
-
-const mcp = new Server({
-  name: "PaylocityMCPServer",
-  version: "1.0.0"
-});
-
-type Employee = components['schemas']['Employee'];
-type EmployeePage = components['schemas']['EmployeePage'];
+import { paylocityApi } from '../utils/paylocityApi.js';
+import type { paths } from '../types/EmployeeDemographic.js';
 
 export function registerEmployeeDemographicRoutes(app: Application) {
   // GET /coreHr/v1/companies/:companyId/employees
   app.get('/coreHr/v1/companies/:companyId/employees', async (req: Request, res: Response) => {
     try {
-      // Extract parameters according to OpenAPI types
       const { companyId } = req.params;
       const { limit, nextToken, include, activeOnly } = req.query;
-      // Example: Use MCP SDK to fetch employees (replace with real logic)
-      // const employees: Employee[] = await mcp.query('Employee', { companyId, ...req.query });
-      const employees: Employee[] = [];
-      // The EmployeePage type allows extra keys due to OpenAPI Record signature, but expects totalCount and employees.
-      const response = {
-        totalCount: 0,
-        employees: employees,
-      } as EmployeePage;      res.json(response);
+      const response = await paylocityApi.get<paths['/coreHr/v1/companies/{companyId}/employees']['get']['responses']['200']['content']['application/json']>(
+        `/coreHr/v1/companies/${companyId}/employees`,
+        {
+          params: {
+            limit,
+            nextToken,
+            include,
+            activeOnly
+          }
+        }
+      );
+      res.json(response.data);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -35,10 +30,13 @@ export function registerEmployeeDemographicRoutes(app: Application) {
     try {
       const { companyId, employeeId } = req.params;
       const { include } = req.query;
-      // Example: Use MCP SDK to fetch a single employee (replace with real logic)
-      // const employee: Employee = await mcp.get('Employee', { companyId, employeeId, include });
-      const employee: Employee = {};
-      res.json(employee);
+      const response = await paylocityApi.get<paths['/coreHr/v1/companies/{companyId}/employees/{employeeId}']['get']['responses']['200']['content']['application/json']>(
+        `/coreHr/v1/companies/${companyId}/employees/${employeeId}`,
+        {
+          params: { include }
+        }
+      );
+      res.json(response.data);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
