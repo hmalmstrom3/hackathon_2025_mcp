@@ -1,11 +1,21 @@
 {
+  "name": "hackathon_2025_mcp",
+  "version": "1.0.0",
+  "description": "Paylocity MCP Server",
+  "main": "dist/server/mcpServer.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --build",
+    "start": "node dist/server/mcpServer.js"
+  },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.2",
-    "axios": "^1.8.4"
+    "axios": "^1.6.0",
+    "dotenv": "^16.0.0",
+    "express": "^5.1.0",
+    "@modelcontextprotocol/sdk": "^1.10.2"
   },
   "devDependencies": {
-    "@types/dotenv": "^8.2.3",
-    "@types/express": "^5.0.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.0.0",
+    "@types/express": "^4.17.0"
   }
 }

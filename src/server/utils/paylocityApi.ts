@@ -1,5 +1,5 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
-import { getPaylocityAccessToken } from './paylocityAuth';
+import { getPaylocityAccessToken } from './paylocityAuth.js';
 
 // Create an axios instance for Paylocity API requests
 export const paylocityApi = axios.create({

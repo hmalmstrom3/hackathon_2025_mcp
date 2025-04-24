@@ -1,8 +1,11 @@
 import { Application, Request, Response } from 'express';
-import { ModelContextProtocol } from '@modelcontextprotocol/sdk';
-import type { paths, components } from '../types/EmployeeDemographic';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { paths, components } from '../types/EmployeeDemographic.js';
 
-const mcp = new ModelContextProtocol();
+const mcp = new Server({
+  name: "PaylocityMCPServer",
+  version: "1.0.0"
+});
 
 type Employee = components['schemas']['Employee'];
 type EmployeePage = components['schemas']['EmployeePage'];

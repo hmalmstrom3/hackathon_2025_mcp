@@ -1,6 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import { registerEmployeeDemographicRoutes } from './routes/employeeDemographic';
+import { registerEmployeeDemographicRoutes } from './routes/employeeDemographic.js';
 dotenv.config();
 
 const app = express();
