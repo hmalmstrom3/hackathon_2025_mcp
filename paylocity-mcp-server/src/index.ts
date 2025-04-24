@@ -24,6 +24,7 @@ import { jsonSchemaToZod } from 'json-schema-to-zod';
 import axios, { type AxiosRequestConfig, type AxiosError } from 'axios';
 import { toolDefinitionMap } from './tools/index.js';
 import { McpToolDefinition } from './tools/definition.js';
+import { SECURITY_SCHEMES } from './oauth2.js';
 
 /**
  * Type definition for JSON objects
@@ -34,9 +35,9 @@ type JsonObject = Record<string, any>;
 /**
  * Server configuration
  */
-export const SERVER_NAME = "employee-demographic-api";
+export const SERVER_NAME = "paylocity-nextgen-api";
 export const SERVER_VERSION = "v1";
-export const API_BASE_URL = "dc1demogwext.paylocity.com";
+export const API_BASE_URL = process.env['API_BASE_URL'];
 
 /**
  * MCP Server instance
@@ -49,7 +50,7 @@ const server = new Server(
 /**
  * Security schemes from the OpenAPI spec
  */
-const securitySchemes =   {};
+const securitySchemes = SECURITY_SCHEMES;
 
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -69,7 +70,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
     console.error(`Error: Unknown tool requested: ${toolName}`);
     return { content: [{ type: "text", text: `Error: Unknown tool requested: ${toolName}` }] };
   }
-  return await executeApiTool(toolName, toolDefinition, toolArgs ?? {}, securitySchemes);
+  let res = await executeApiTool(toolName, toolDefinition, toolArgs ?? {}, securitySchemes);
+  console.log(res);
+  return res;
 });
 
 
@@ -99,8 +102,8 @@ declare global {
 async function acquireOAuth2Token(schemeName: string, scheme: any): Promise<string | null | undefined> {
     try {
         // Check if we have the necessary credentials
-        const clientId = process.env[`OAUTH_CLIENT_ID_SCHEMENAME`];
-        const clientSecret = process.env[`OAUTH_CLIENT_SECRET_SCHEMENAME`];
+        const clientId = process.env[`OAUTH_CLIENT_ID_${schemeName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`];
+        const clientSecret = process.env[`OAUTH_CLIENT_SECRET_${schemeName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`];
         const scopes = process.env[`OAUTH_SCOPES_SCHEMENAME`];
         
         if (!clientId || !clientSecret) {
@@ -139,6 +142,8 @@ async function acquireOAuth2Token(schemeName: string, scheme: any): Promise<stri
         // Prepare the token request
         let formData = new URLSearchParams();
         formData.append('grant_type', 'client_credentials');
+        formData.append('client_id', clientId);
+        formData.append('client_secret', clientSecret);
         
         // Add scopes if specified
         if (scopes) {
@@ -153,7 +158,7 @@ async function acquireOAuth2Token(schemeName: string, scheme: any): Promise<stri
             url: tokenUrl,
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
+                //'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
             },
             data: formData.toString()
         });
@@ -257,6 +262,7 @@ async function executeApiTool(
     const appliedSecurity = definition.securityRequirements?.find(req => {
         // Try each security requirement (combined with OR)
         return Object.entries(req).every(([schemeName, scopesArray]) => {
+            console.log("sec", schemeName, scopesArray, allSecuritySchemes);
             const scheme = allSecuritySchemes[schemeName];
             if (!scheme) return false;
             
@@ -278,6 +284,7 @@ async function executeApiTool(
             
             // OAuth2 security
             if (scheme.type === 'oauth2') {
+                console.log(scheme);
                 // Check for pre-existing token
                 if (process.env[`OAUTH_TOKEN_${schemeName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`]) {
                     return true;
