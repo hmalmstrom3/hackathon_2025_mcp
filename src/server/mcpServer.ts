@@ -26,8 +26,172 @@ app.listen(PORT, () => {
 // --- MCP Session Management ---
 const transports: Record<string, StreamableHTTPServerTransport> = {};
 
+// Helper to register all MCP tools, prompts, and resources
+function registerMcpServerFeatures(mcp: McpServer) {
+  // Register the Paylocity employee list API as an MCP tool
+  mcp.tool(
+    "getEmployees",
+    "Fetch a list of employees for a company from Paylocity.",
+    {
+      companyId: z.string(),
+      limit: z.string().optional(),
+      nextToken: z.string().optional(),
+      include: z.string().optional(),
+      activeOnly: z.string().optional(),
+    },
+    async (
+      { companyId, limit, nextToken, include, activeOnly }: { companyId: string; limit?: string; nextToken?: string; include?: string; activeOnly?: string }
+    ) => {
+      // Compose query params
+      const params: Record<string, string | undefined> = {};
+      if (limit) params.limit = limit;
+      if (nextToken) params.nextToken = nextToken;
+      if (include) params.include = include;
+      if (activeOnly) params.activeOnly = activeOnly;
+      const response = await paylocityApi.get(`/coreHr/v1/companies/${companyId}/employees`, {
+        params,
+      });
+      return { content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }] };
+    }
+  );
+
+  // Register a prompt for getting Paylocity employees
+  mcp.prompt(
+    "getPaylocityEmployeesPrompt",
+    {
+      companyId: z.string(),
+      limit: z.string().optional(),
+      activeOnly: z.string().optional(), // Now a string, not boolean
+    },
+    async (
+      { companyId, limit, activeOnly }: { companyId: string; limit?: string; activeOnly?: string }
+    ) => {
+      // Compose query params
+      const params: Record<string, string | undefined> = {};
+      if (limit) params.limit = limit;
+      if (activeOnly !== undefined && activeOnly !== "") params.activeOnly = activeOnly === "true" ? "true" : undefined;
+      const response = await paylocityApi.get(`/coreHr/v1/companies/${companyId}/employees`, {
+        params,
+      });
+      return {
+        messages: [
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: JSON.stringify(response.data, null, 2),
+            },
+          },
+        ],
+      };
+    }
+  );
+
+  // Register a minimal echo prompt
+  mcp.prompt(
+    "echo",
+    { message: z.string() },
+    async ({ message }: { message: string }) => ({
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: `Echo: ${message}`,
+          },
+        },
+      ],
+    })
+  );
+
+  // Employee data resource (list employees for a company)
+  mcp.resource(
+    "employees",
+    new ResourceTemplate("employees://{companyId}", { list: undefined }),
+    async (uri, { companyId }) => {
+      const response = await paylocityApi.get(`/coreHr/v1/companies/${companyId}/employees`);
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    }
+  );
+
+  // Client config resource (static)
+  mcp.resource(
+    "client-config",
+    "config://client",
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          text: JSON.stringify({ name: "TestClient", version: "1.0.0" }, null, 2),
+        },
+      ],
+    })
+  );
+
+  // Static hello resource
+  mcp.resource(
+    "hello",
+    "hello://world",
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          text: "Hello, world!"
+        }
+      ]
+    })
+  );
+}
+
+// SSE support for GET requests on /sse
+app.all('/sse', async (req, res) => {
+  if (req.method === 'GET' && req.headers.accept === 'text/event-stream') {
+    console.log('SSE connection attempt received');
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders && res.flushHeaders();
+
+    // Send initial keepalive to prevent client timeout
+    res.write(':\n\n');
+
+    // Create a new transport for this SSE connection
+    // Use the correct options object for StreamableHTTPServerTransport
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+    });
+
+    // Initialize a new MCP server instance for this session
+    const mcp = new McpServer({
+      name: "PaylocityMCPServer",
+      version: "1.0.0"
+    });
+    registerMcpServerFeatures(mcp);
+
+    await mcp.connect(transport);
+
+    req.on('close', () => {
+      console.log('SSE connection closed by client');
+      transport.close();
+    });
+    return;
+  } else if (req.method === 'GET') {
+    res.status(405).send('GET not supported on /sse. Use POST for JSON-RPC.');
+    return;
+  }
+});
+
 app.all('/mcp', async (req, res) => {
   console.log('Received request on /mcp');
+  console.log('Method:', req.method);
+  console.log('Headers:', req.headers);
   console.log('Request body:', req.body);
   try {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
@@ -68,7 +232,37 @@ app.all('/mcp', async (req, res) => {
       }
     );
 
-    // Register a minimal prompt so the MCP server is always initialized
+    // Register a prompt for getting Paylocity employees
+    mcp.prompt(
+      "getPaylocityEmployeesPrompt",
+      {
+        companyId: z.string(),
+        limit: z.string().optional(),
+        activeOnly: z.string().optional(), // Now a string, not boolean
+      },
+      async ({ companyId, limit, activeOnly }) => {
+        // Compose query params
+        const params: Record<string, string | undefined> = {};
+        if (limit) params.limit = limit;
+        if (activeOnly !== undefined && activeOnly !== "") params.activeOnly = activeOnly === "true" ? "true" : undefined;
+        const response = await paylocityApi.get(`/coreHr/v1/companies/${companyId}/employees`, {
+          params,
+        });
+        return {
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: JSON.stringify(response.data, null, 2),
+              },
+            },
+          ],
+        };
+      }
+    );
+
+    // Register a minimal echo prompt
     mcp.prompt(
       "echo",
       { message: z.string() },
@@ -129,6 +323,7 @@ app.all('/mcp', async (req, res) => {
         ]
       })
     );
+
 
       // Create and store transport for session
       transport = new StreamableHTTPServerTransport({
