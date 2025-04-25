@@ -11,7 +11,7 @@ describe('MCP Client Integration', () => {
   it('should list employees using the MCP getEmployees tool', async () => {
     const { client, transport } = await createMcpClient();
     // Use a dummy companyId for test; replace with a real one if needed
-    const companyId = 'test-company-id';
+    const companyId = 'B6001';
     const result = await client.callTool({
       name: 'getEmployees',
       arguments: { companyId }
